@@ -1,23 +1,24 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html xmlns:th="http://www.thymeleaf.org">
 
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <title>じゃんけん</title>
 </head>
 
 <body>
-  <h1>Janken GAME!</h1>
-  <p>Hi [[${username}]]</p>
-
-  <div>
-    <a href="/play?hand=ぐー">ぐー</a>
-    <a href="/play?hand=ちょき">ちょき</a>
-    <a href="/play?hand=ぱー">ぱー</a>
+  <h1>じゃんけん</h1>
+  <div th:if="${username != null}">
+    <h2>Hi <span th:text="${username}"></span></h2>
   </div>
 
-  <div th:if="${playerHand != null}">
-    <h3>結果</h3>
+  <div>
+    <a th:href="@{/play(hand='ぐー')}">ぐー</a>
+    <a th:href="@{/play(hand='ちょき')}">ちょき</a>
+    <a th:href="@{/play(hand='ぱー')}">ぱー</a>
+  </div>
+
+  <div>
     <p>あなたの手: <span th:text="${playerHand}"></span></p>
     <p>相手の手: <span th:text="${cpuHand}"></span></p>
     <p>結果: <span th:text="${result}"></span></p>
