@@ -2,34 +2,34 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.springframework.org/schema/security">
 
 <head>
-  <meta charset="utf-8">
-  <title>じゃんけん</title>
+  <meta charset="UTF-8">
+  <title>Janken Game</title>
 </head>
 
 <body>
   <a href="/logout">ログアウト</a>
-
   <h1>Janken GAME!</h1>
+  <p>Hi <span th:text="${loginUser}">ユーザー</span></p>
 
-  <h3>エントリー</h3>
+  <h2>エントリー</h2>
   <ul>
-    <li th:each="user : ${entryUsers}" th:text="${user}"></li>
+    <li th:each="user : ${users}">
+      <a th:href="@{/match(id=${user.id})}">[[${user.name}]]</a>
+    </li>
   </ul>
 
-  <p>今<span th:text="${entryCount}"></span>人がエントリーしています</p>
-  <p>Hi <span th:text="${username}"></span></p>
-
-  <div>
-    <a th:href="@{/play(hand='ぐー')}">ぐー</a>
-    <a th:href="@{/play(hand='ちょき')}">ちょき</a>
-    <a th:href="@{/play(hand='ぱー')}">ぱー</a>
+  <h3>試合結果</h3>
+  <div th:each="match : ${matches}">
+    <p>
+      id:<span th:text="${match.id}"></span>
+      user1:<span th:text="${match.user1}"></span>
+      user2:<span th:text="${match.user2}"></span>
+      user1の手:<span th:text="${match.user1Hand}"></span>
+      user2の手:<span th:text="${match.user2Hand}"></span>
+      結果:<span th:text="${match.result}"></span>
+    </p>
   </div>
 
-  <div>
-    <p>あなたの手: <span th:text="${playerHand}"></span></p>
-    <p>相手の手: <span th:text="${cpuHand}"></span></p>
-    <p>結果: <span th:text="${result}"></span></p>
-  </div>
 </body>
 
 </html>
