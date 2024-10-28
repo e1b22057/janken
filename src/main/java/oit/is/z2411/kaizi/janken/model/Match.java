@@ -6,7 +6,7 @@ public class Match {
   int user2;
   String user1Hand;
   String user2Hand;
-  String result;
+  boolean isActive;
 
   // ゲッターとセッターを追加
   public int getId() {
@@ -49,12 +49,12 @@ public class Match {
     this.user2Hand = user2Hand;
   }
 
-  public String getResult() {
-    return result;
+  public boolean getIsActive() {
+    return isActive;
   }
 
-  public void setResult(String result) {
-    this.result = result;
+  public void setIsActive(boolean isActive) {
+    this.isActive = isActive;
   }
 
 }

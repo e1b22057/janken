@@ -9,7 +9,7 @@
 <body>
   <a href="/logout">ログアウト</a>
   <h1>Janken GAME!</h1>
-  <p>Hi <span th:text="${loginUser}">ユーザー</span></p>
+  <p>Hi <span th:text="${user}">ユーザー</span></p>
 
   <h2>エントリー</h2>
   <ul>
@@ -18,17 +18,29 @@
     </li>
   </ul>
 
-  <h3>試合結果</h3>
-  <div th:each="match : ${matches}">
-    <p>
-      id:<span th:text="${match.id}"></span>
-      user1:<span th:text="${match.user1}"></span>
-      user2:<span th:text="${match.user2}"></span>
-      user1の手:<span th:text="${match.user1Hand}"></span>
-      user2の手:<span th:text="${match.user2Hand}"></span>
-      結果:<span th:text="${match.result}"></span>
-    </p>
-  </div>
+  <h3>アクティブな試合</h3>
+  <tbody th:if="${!#lists.isEmpty(activeMatches)}">
+    <div th:each="matchinfo : ${activeMatches}">
+      <p>
+        id: <span th:text="${matchinfo.id}"></span>
+        user1: <span th:text="${matchinfo.user1}"></span>
+        user2: <span th:text="${matchinfo.user2}"></span>
+        isActive: <span th:text="${matchinfo.isActive}"></span>
+      </p>
+    </div>
+    </div>
+
+    <h4>試合結果</h4>
+    <div th:each="match : ${matches}">
+      <p>
+        id:<span th:text="${match.id}"></span>
+        user1:<span th:text="${match.user1}"></span>
+        user2:<span th:text="${match.user2}"></span>
+        user1の手:<span th:text="${match.user1Hand}"></span>
+        user2の手:<span th:text="${match.user2Hand}"></span>
+        結果:<span th:text="${match.result}"></span>
+      </p>
+    </div>
 
 </body>
 

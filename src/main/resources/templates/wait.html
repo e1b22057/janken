@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.springframework.org/schema/security">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Wait</title>
+</head>
+
+<body>
+  <h1>相手の手を待ってます</h1>
+  <p>Hi[[${opponent.name}]]</p>
+
+  <h2>結果を待っています...</h2>
+
+  <div id="match_result">
+    <table>
+      <thead>
+        <tr>
+          <th>対戦者</th>
+          <th>手</th>
+          <th>結果</th>
+        </tr>
+      </thead>
+      <tbody id="result_list">
+        <!-- ここにサーバーからのデータが反映される -->
+      </tbody>
+    </table>
+  </div>
+
+  <a href="/janken" id="back-link" style="display: none;">[戻る]</a>
+
+  <script>
+    window.onload = function () {
+      var sse = new EventSource('/wait');
+      sse.onmessage = function (event) {
+        console.log("sse.onmessage");
+        console.log(event.data);
+
+        // サーバーから受け取った結果をJSONとしてパース
+        var match_result = JSON.parse(event.data);
+        var result_table = "";
+
+        // HTMLのテーブル行を生成
+        var user1 = "<td>" + match_result.user1 + "</td>";
+        var user1Hand = "<td>" + match_result.user1Hand + "</td>";
+        var user2 = "<td>" + match_result.user2 + "</td>";
+        var user2Hand = "<td>" + match_result.user2Hand + "</td>";
+        var matchOutcome = "<td>" + match_result.outcome + "</td>"; // 例えば勝ち/負け/引き分けをここに表示
+
+        var bgn_tr = "<tr>";
+        var end_tr = "</tr>";
+        result_table = bgn_tr + user1 + user1Hand + user2 + user2Hand + matchOutcome + end_tr;
+
+        // 結果をテーブルに反映
+        var tbody = document.getElementById("result_list");
+        tbody.innerHTML = result_table;
+
+        // [戻る]リンクを表示して、EventSourceを閉じる
+        document.getElementById('back-link').style.display = "block";
+        sse.close();
+      };
+    };
+  </script>
+</body>
+
+</html>

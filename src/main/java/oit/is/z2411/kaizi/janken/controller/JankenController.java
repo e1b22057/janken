@@ -1,117 +1,113 @@
 package oit.is.z2411.kaizi.janken.controller;
 
-import java.security.Principal;
-import java.util.ArrayList;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import oit.is.z2411.kaizi.janken.model.MatchInfo;
+import oit.is.z2411.kaizi.janken.model.User;
+import oit.is.z2411.kaizi.janken.model.MatchInfoMapper;
+import oit.is.z2411.kaizi.janken.model.UserMapper;
 import oit.is.z2411.kaizi.janken.model.Match;
 import oit.is.z2411.kaizi.janken.model.MatchMapper;
-import oit.is.z2411.kaizi.janken.model.User;
-import oit.is.z2411.kaizi.janken.model.UserMapper;
+import oit.is.z2411.kaizi.janken.service.AsyncKekka;
+
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 
 @Controller
 public class JankenController {
 
   @Autowired
-  UserMapper userMapper;
+  private MatchMapper matchMapper;
+  @Autowired
+  private MatchInfoMapper matchInfoMapper;
 
   @Autowired
-  MatchMapper matchMapper; // MatchMapperを@Autowiredで注入する必要があります。
+  private UserMapper userMapper;
+
+  @Autowired
+  private AsyncKekka asyncKekka;
 
   @GetMapping("/janken")
-  public String janken(Principal prin, ModelMap model) {
-    String loginUser = prin.getName();
-    model.addAttribute("loginUser", loginUser);
+  public String janken(Principal principal, ModelMap model) {
+    String loginUser = principal.getName();
+    model.addAttribute("user", loginUser);
 
+    // ユーザー一覧を取得
     ArrayList<User> users = userMapper.selectAllUsers();
     model.addAttribute("users", users);
 
-    ArrayList<Match> matches = matchMapper.selectAllMatches();
-    for (Match match : matches) {
-      User user1 = userMapper.selectUserById(match.getUser1());
-      User user2 = userMapper.selectUserById(match.getUser2());
-      String result = determineWinner(match.getUser1Hand(), match.getUser2Hand());
-      String winnerName = result.equals("Draw") ? "引き分け"
-          : result.equals("Win") ? user1.getName() + "の勝利" : user2.getName() + "の勝利";
-      match.setResult(winnerName);
-    }
-    model.addAttribute("matches", matches);
-
+    ArrayList<MatchInfo> activeMatches = matchInfoMapper.findActiveMatches();
+    model.addAttribute("activeMatches", activeMatches);
     return "janken";
   }
 
-  private String determineWinner(String hand1, String hand2) {
-    if (hand1.equals(hand2)) {
-      return "Draw";
-    } else if ((hand1.equals("Gu") && hand2.equals("Choki")) ||
-        (hand1.equals("Choki") && hand2.equals("Pa")) ||
-        (hand1.equals("Pa") && hand2.equals("Gu"))) {
-      return "Win";
-    } else {
-      return "Lose";
-    }
-  }
-
-  // 対戦相手の情報を表示するメソッドを追加
   @GetMapping("/match")
-  public String match(Principal prin, @RequestParam("id") int opponentId, ModelMap model) {
-    String loginUserName = prin.getName();
-    User opponent = userMapper.selectUserById(opponentId); // 対戦相手を取得
-    User user = userMapper.selectUserByName(loginUserName); // ログインユーザーを取得
+  public String match(@RequestParam int id, ModelMap model, Principal principal) {
+    String loginUser = principal.getName();
+    model.addAttribute("user", loginUser);
 
-    model.addAttribute("loginUser", loginUserName);
-    model.addAttribute("opponent", opponent);
-    model.addAttribute("userId", user.getId()); // 自身のユーザーIDをモデルに追加
-
-    return "match"; // match.htmlテンプレートを返す
-  }
-
-  @GetMapping("/fight")
-  @Transactional
-  public String fight(@RequestParam int id, @RequestParam String hand, ModelMap model, Principal prin) {
-    String loginUser = prin.getName();
-    User user = userMapper.selectUserByName(loginUser);
+    // 対戦相手の情報を取得
     User opponent = userMapper.selectUserById(id);
-
-    String cpuHand = "Gu"; // CPU の手は常に Gu (グー)
-
-    // 結果を判定
-    String result = determineResult(hand, cpuHand);
-
-    // マッチを作成し、データベースに挿入
-    Match match = new Match();
-    match.setUser1(user.getId());
-    match.setUser2(opponent.getId());
-    match.setUser1Hand(hand);
-    match.setUser2Hand(cpuHand);
-    matchMapper.insertMatch(match);
-
-    model.addAttribute("loginUser", loginUser);
     model.addAttribute("opponent", opponent);
-    model.addAttribute("userHand", hand);
-    model.addAttribute("cpuHand", cpuHand);
-    model.addAttribute("result", result);
+    model.addAttribute("id", id);
 
     return "match";
   }
 
-  // 勝敗を判定するメソッドを追加
-  private String determineResult(String userHand, String cpuHand) {
-    if (userHand.equals(cpuHand)) {
-      return "Draw";
-    } else if ((userHand.equals("Gu") && cpuHand.equals("Choki")) ||
-        (userHand.equals("Choki") && cpuHand.equals("Pa")) ||
-        (userHand.equals("Pa") && cpuHand.equals("Gu"))) {
-      return "Win";
+  // じゃんけんの手を選択
+  @GetMapping("/fight")
+  @Transactional
+  public String fight(@RequestParam Integer id, @RequestParam String hand, Principal prin, ModelMap model) {
+    String loginUser = prin.getName();
+    User currentUser = userMapper.selectUserByName(loginUser); // ログインユーザーのUser情報を取得
+    int userId = currentUser.getId(); // UserからIDを取得
+
+    // 自分と相手のActiveな対戦情報があるか確認
+    MatchInfo activeMatch = matchInfoMapper.selectActiveMatchInfoByUserId(userId);
+
+    if (activeMatch != null && activeMatch.getUser1() == id && activeMatch.getUser2() == userId) {
+      // 対戦成立時: 両者が手を選んだ場合
+      Match match = new Match();
+      match.setUser1(activeMatch.getUser1());
+      match.setUser2(userId);
+      match.setUser1Hand(activeMatch.getUser1Hand());
+      match.setUser2Hand(hand);
+      match.setIsActive(true);
+      matchMapper.insertMatch(match);
+
+      // 対応するMatchInfoを非アクティブに更新
+      activeMatch.setIsActive(false);
+      matchInfoMapper.updateMatchInfo(activeMatch);
+
+      model.addAttribute("match", match);
     } else {
-      return "Lose";
+      // 新規対戦待ち情報を登録
+      MatchInfo newMatchInfo = new MatchInfo();
+      newMatchInfo.setUser1(userId);
+      newMatchInfo.setUser2(id);
+      newMatchInfo.setUser1Hand(hand);
+      newMatchInfo.setIsActive(true);
+      matchInfoMapper.insertMatchInfo(newMatchInfo);
+
+      model.addAttribute("matchinfo", newMatchInfo);
     }
+
+    model.addAttribute("user", loginUser);
+    model.addAttribute("hand", hand);
+    return "wait";
+  }
+
+  @GetMapping("/wait")
+  public SseEmitter waitResult() {
+    final SseEmitter sseEmitter = new SseEmitter();
+    this.asyncKekka.asyncMatchResult(sseEmitter);
+    return sseEmitter;
   }
 }
